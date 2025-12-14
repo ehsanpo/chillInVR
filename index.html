@@ -118,11 +118,11 @@
       Loading panorama...
     </div>
 
-    <a-scene renderer="antialias: true; colorManagement: true; sortObjects: true; physicallyCorrectLights: true; maxCanvasWidth: 8192; maxCanvasHeight: 8192; precision: highp;">
+    <a-scene renderer="antialias: true; colorManagement: false; sortObjects: true; physicallyCorrectLights: false; maxCanvasWidth: 8192; maxCanvasHeight: 8192; precision: highp; gammaOutput: false;">
       <a-assets>
         <img id="panorama-img" crossorigin="anonymous">
       </a-assets>
-      <a-sky id="panorama" rotation="0 -130 0" segments-height="128" segments-width="128" radius="100"></a-sky>
+      <a-sky id="panorama" rotation="0 0 0" segments-height="128" segments-width="128" radius="100"></a-sky>
     </a-scene>
 
     <script>
@@ -201,6 +201,7 @@
         
         newImg.onload = function() {
           console.log('✅ Image loaded successfully!');
+          console.log('📐 Original image size:', newImg.width, 'x', newImg.height);
           
           // Get the mesh and update the texture directly
           const skyEl = panoramaElement;
@@ -212,20 +213,28 @@
             // Get max anisotropy from renderer
             const renderer = skyEl.sceneEl.renderer;
             const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+            const maxTextureSize = renderer.capabilities.maxTextureSize;
+            
+            console.log('🖥️ GPU max texture size:', maxTextureSize, '| Max anisotropy:', maxAnisotropy);
             
             const texture = new THREE.Texture(newImg);
             texture.needsUpdate = true;
-            texture.minFilter = THREE.LinearMipMapLinearFilter; // Best quality minification
-            texture.magFilter = THREE.LinearFilter; // Best quality magnification
-            texture.anisotropy = maxAnisotropy; // Use maximum available anisotropic filtering
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.anisotropy = maxAnisotropy;
             texture.generateMipmaps = true;
-            texture.format = THREE.RGBAFormat;
-            texture.encoding = THREE.sRGBEncoding; // Proper color space
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            
+            // Dispose old texture to free memory
+            if (mesh.material.map) {
+              mesh.material.map.dispose();
+            }
             
             mesh.material.map = texture;
             mesh.material.needsUpdate = true;
             
-            console.log('✨ Texture updated! Anisotropy:', maxAnisotropy);
+            console.log('✨ Texture updated successfully!');
           } else {
             console.warn('⚠️ Mesh not found, trying setAttribute');
             skyEl.setAttribute('src', imagePath);
