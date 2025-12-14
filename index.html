@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>ChillInVR - Panorama Viewer</title>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+      }
+      
+      #ui-overlay {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 20px 30px;
+        border-radius: 15px;
+        color: white;
+        text-align: center;
+        backdrop-filter: blur(10px);
+      }
+      
+      #ui-overlay h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+        font-weight: bold;
+      }
+      
+      #image-counter {
+        margin: 10px 0;
+        font-size: 18px;
+        color: #cccccc;
+      }
+      
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin-top: 15px;
+        justify-content: center;
+      }
+      
+      button {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s ease;
+      }
+      
+      button:hover {
+        background: #45a049;
+        transform: scale(1.05);
+      }
+      
+      button:active {
+        transform: scale(0.95);
+      }
+      
+      #instructions {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 1000;
+      }
+      
+      #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      
+      #loading-overlay.show {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ui-overlay">
+      <h1>🏔️ ChillInVR</h1>
+      <div id="image-counter">Image 1 of 36</div>
+      <div class="controls">
+        <button id="prevBtn">← Previous</button>
+        <button id="nextBtn">Next →</button>
+      </div>
+    </div>
+    
+    <div id="instructions">
+      Drag to look around • Click buttons or use arrow keys to change panorama
+    </div>
+    
+    <div id="loading-overlay">
+      Loading panorama...
+    </div>
+
+    <a-scene renderer="antialias: true; colorManagement: true; sortObjects: true; physicallyCorrectLights: true; maxCanvasWidth: 8192; maxCanvasHeight: 8192; precision: highp;">
+      <a-assets>
+        <img id="panorama-img" crossorigin="anonymous">
+      </a-assets>
+      <a-sky id="panorama" rotation="0 -130 0" segments-height="128" segments-width="128" radius="100"></a-sky>
+    </a-scene>
+
+    <script>
+      // List of all available panorama images
+      const panoramas = [
+        'IMG-20250818-WA0000.jpg',
+        'IMG-20250818-WA0002.jpg',
+        'IMG-20250915-WA0000.jpg',
+        'IMG-20250915-WA0001.jpg',
+        'IMG-20250915-WA0002.jpg',
+        'IMG-20250915-WA0003.jpg',
+        'IMG-20250915-WA0004.jpg',
+        'IMG-20250915-WA0005.jpg',
+        'IMG-20250915-WA0006.jpg',
+        'IMG-20250915-WA0007.jpg',
+        'IMG-20250915-WA0008.jpg',
+        'IMG-20250915-WA0009.jpg',
+        'IMG-20250915-WA0010.jpg',
+        'IMG-20250915-WA0011.jpg',
+        'IMG-20250915-WA0012.jpg',
+        'IMG-20250915-WA0013.jpg',
+        'IMG-20250915-WA0014.jpg',
+        'IMG-20250915-WA0015.jpg',
+        'IMG-20250915-WA0016.jpg',
+        'IMG-20250915-WA0017.jpg',
+        'IMG-20250915-WA0018.jpg',
+        'IMG-20250915-WA0019.jpg',
+        'IMG-20250915-WA0020.jpg',
+        'IMG-20250915-WA0021.jpg',
+        'IMG-20250915-WA0022.jpg',
+        'IMG-20250915-WA0023.jpg',
+        'IMG-20250915-WA0024.jpg',
+        'IMG-20250915-WA0025.jpg',
+        'IMG-20250915-WA0026.jpg',
+        'IMG-20250915-WA0027.jpg',
+        'IMG-20250915-WA0028.jpg',
+        'IMG-20250915-WA0029.jpg',
+        'IMG-20250915-WA0030.jpg',
+        'IMG-20250915-WA0031.jpg',
+        'IMG-20250915-WA0032.jpg',
+        'IMG-20251101-WA0006.jpg',
+      ];
+
+      let currentIndex = 0;
+
+      console.log('🎬 Script starting...');
+
+      // Get DOM elements
+      const panoramaElement = document.querySelector('#panorama');
+      const imageCounter = document.getElementById('image-counter');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const loadingOverlay = document.getElementById('loading-overlay');
+
+      console.log('✅ Elements found:', {
+        panorama: !!panoramaElement,
+        counter: !!imageCounter,
+        prevBtn: !!prevBtn,
+        nextBtn: !!nextBtn
+      });
+
+      // Function to update the panorama
+      function updatePanorama() {
+        const imagePath = `static_assets/${panoramas[currentIndex]}`;
+        console.log('🖼️ Changing to:', imagePath);
+        
+        // Show loading overlay
+        loadingOverlay.classList.add('show');
+        
+        // Update the counter
+        imageCounter.textContent = `Image ${currentIndex + 1} of ${panoramas.length}`;
+        
+        // Create a new image to preload
+        const newImg = new Image();
+        newImg.crossOrigin = 'anonymous';
+        
+        newImg.onload = function() {
+          console.log('✅ Image loaded successfully!');
+          
+          // Get the mesh and update the texture directly
+          const skyEl = panoramaElement;
+          const mesh = skyEl.getObject3D('mesh');
+          
+          if (mesh) {
+            console.log('🎨 Updating texture...');
+            
+            // Get max anisotropy from renderer
+            const renderer = skyEl.sceneEl.renderer;
+            const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+            
+            const texture = new THREE.Texture(newImg);
+            texture.needsUpdate = true;
+            texture.minFilter = THREE.LinearMipMapLinearFilter; // Best quality minification
+            texture.magFilter = THREE.LinearFilter; // Best quality magnification
+            texture.anisotropy = maxAnisotropy; // Use maximum available anisotropic filtering
+            texture.generateMipmaps = true;
+            texture.format = THREE.RGBAFormat;
+            texture.encoding = THREE.sRGBEncoding; // Proper color space
+            
+            mesh.material.map = texture;
+            mesh.material.needsUpdate = true;
+            
+            console.log('✨ Texture updated! Anisotropy:', maxAnisotropy);
+          } else {
+            console.warn('⚠️ Mesh not found, trying setAttribute');
+            skyEl.setAttribute('src', imagePath);
+          }
+          
+          loadingOverlay.classList.remove('show');
+        };
+        
+        newImg.onerror = function() {
+          console.error('❌ Failed to load image:', imagePath);
+          loadingOverlay.classList.remove('show');
+        };
+        
+        // Set the source to trigger loading
+        newImg.src = imagePath + '?t=' + Date.now(); // Add cache buster
+        console.log('🎯 Loading image:', imagePath);
+      }
+
+      // Navigate to next panorama
+      function nextPanorama() {
+        currentIndex = (currentIndex + 1) % panoramas.length;
+        console.log('➡️ Next clicked, new index:', currentIndex);
+        updatePanorama();
+      }
+
+      // Navigate to previous panorama
+      function previousPanorama() {
+        currentIndex = (currentIndex - 1 + panoramas.length) % panoramas.length;
+        console.log('⬅️ Previous clicked, new index:', currentIndex);
+        updatePanorama();
+      }
+
+      // Event listeners for buttons
+      if (prevBtn) {
+        prevBtn.addEventListener('click', previousPanorama);
+        console.log('✅ Previous button listener added');
+      }
+      if (nextBtn) {
+        nextBtn.addEventListener('click', nextPanorama);
+        console.log('✅ Next button listener added');
+      }
+
+      // Keyboard controls
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === 'Right') {
+          nextPanorama();
+        } else if (event.key === 'ArrowLeft' || event.key === 'Left') {
+          previousPanorama();
+        }
+      });
+
+      console.log('🚀 ChillInVR loaded with', panoramas.length, 'panoramas');
+      
+      // Load the first panorama
+      updatePanorama();
+    </script>
+  </body>
+</html>

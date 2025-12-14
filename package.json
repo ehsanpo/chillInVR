@@ -1,0 +1,15 @@
+{
+  "name": "chillInVR",
+  "version": "1.0.0",
+  "description": "A-Frame VR panorama viewer with ambient sound",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8081 -o"
+  },
+  "keywords": ["aframe", "vr", "panorama"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
